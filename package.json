@@ -1,0 +1,25 @@
+{
+  "name": "@lc3/sdk",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "axios": "^0.18.0"
+  },
+  "devDependencies": {
+    "mocha": "^5.2.0"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lemonce3/sdk.git"
+  },
+  "author": "ChaosLee",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/lemonce3/sdk/issues"
+  },
+  "homepage": "https://github.com/lemonce3/sdk#readme"
+}
