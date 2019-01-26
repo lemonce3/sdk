@@ -1,17 +1,20 @@
 const EventEmitter = require('events');
 const axios = require('axios');
-const { Agent, AgentHandleContext } = require('./agent');
+const { Agent } = require('./agent');
+const { Driver } = require('./driver');
 const fs = require('fs');
 
 class MasterConnectionError extends Error {}
+class MasterBindingError extends Error {}
 
 class Master extends EventEmitter {
-	constructor(options) {
+	constructor(options, agentNameList= ['main']) {
 		super();
 
 		const {
 			observerUrl,
-			agentNameList = ['main'],
+			programTimeout = 3000,
+			assertTimeout = 3000,
 			watchInterval = 50,
 			saveLog = false,
 			logSavingPath = ''
@@ -26,7 +29,6 @@ class Master extends EventEmitter {
 		});
 
 		this.agents = {};
-
 		this.destroyed = false;
 		this.connecting = false;
 
@@ -41,10 +43,10 @@ class Master extends EventEmitter {
 
 			this.model = masterModel;
 			setTimeout(() => this.$watch(), this.options.watchInterval);
-		}, error => {
+		}, () => {
 			this.destroyed = true;
 			this.connecting = false;
-			this.emit('errpr', error);
+			this.emit('error', new MasterConnectionError('Connection is broken and master has been destroyed.'));
 			this.emit('destroy');
 		});
 	}
@@ -56,7 +58,11 @@ class Master extends EventEmitter {
 			this.id = masterModel.id;
 			this.model = masterModel;
 
-			await Promise.all(nameList.map(name => this.bindAgent(name)));
+			try {
+				await Promise.all(nameList.map(name => this.bind(name)));
+			} catch (error) {
+				throw new MasterBindingError('No idle agent could be binded.');
+			}
 			
 			await this.$watch();
 			this.emit('ready', this);
@@ -74,27 +80,22 @@ class Master extends EventEmitter {
 		}
 	}
 
-	getAgent(name) {
-		return this.agents[name];
-	}
-
-	async use(agentName, asyncCallback) {
-		this.agents[agentName];
-		return await asyncCallback();
-	}
-
-	async bindAgent(name) {
+	async bind(name) {
 		const { data: agent } = await this.axios.post(`/master/${this.id}/agent`);
 
 		this.agents[name] = new Agent(agent, this);
 	}
 
-	async unbindAgent(name) {
+	async unbind(name) {
 		const { id } = this.agents[name];
 		await this.axios.delete(`/master/${this.id}/agent/${id}`);
 	}
 
-	async log() {
+	getAgent(name) {
+		return this.agents[name];
+	}
+
+	async log(namespace, message) {
 
 	}
 
@@ -111,8 +112,8 @@ class Master extends EventEmitter {
 		});
 	}
 
-	static use(platform = 'web', driverDefination) {
-
+	static use(install) {
+		install(Driver.prototype);
 	}
 }
 
