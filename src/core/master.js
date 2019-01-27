@@ -1,28 +1,27 @@
 const EventEmitter = require('events');
+const path = require('path');
 const axios = require('axios');
+const fs = require('fs-extra');
+const _ = require('lodash');
+
 const { Agent } = require('./agent');
-const { Driver } = require('./driver');
-const fs = require('fs');
+const mergeOptions = require('../options/merge');
+const { provideAssert, provideIdle } = require('../utils');
 
 class MasterConnectionError extends Error {}
 class MasterBindingError extends Error {}
+class MasterError extends Error {}
 
 class Master extends EventEmitter {
-	constructor(options, agentNameList= ['main']) {
+	constructor(options) {
 		super();
 
-		const {
-			observerUrl,
-			programTimeout = 3000,
-			assertTimeout = 3000,
-			watchInterval = 50,
-			saveLog = false,
-			logSavingPath = ''
-		} = options;
+		const { observerUrl, agents } = options;
 
 		this.id = null;
 		this.model = null;
 		this.options = options;
+
 		this.axios = axios.create({
 			baseURL: `${observerUrl}/api`,
 			timeout: 1000
@@ -32,7 +31,10 @@ class Master extends EventEmitter {
 		this.destroyed = false;
 		this.connecting = false;
 
-		this.init(agentNameList);
+		this.assert = provideAssert(options.assert.timeout);
+		this.idle = provideIdle(options.idle.timeout);
+
+		this.init(agents);
 	}
 
 	$watch() {
@@ -42,7 +44,7 @@ class Master extends EventEmitter {
 			}
 
 			this.model = masterModel;
-			setTimeout(() => this.$watch(), this.options.watchInterval);
+			setTimeout(() => this.$watch(), this.options.polling);
 		}, () => {
 			this.destroyed = true;
 			this.connecting = false;
@@ -53,6 +55,8 @@ class Master extends EventEmitter {
 
 	async init(nameList) {
 		try {
+			fs.ensureDirSync(this.options.log.path);
+
 			const { data: masterModel } = await this.axios.post('/master');
 			this.connecting = true;
 			this.id = masterModel.id;
@@ -75,8 +79,11 @@ class Master extends EventEmitter {
 		await this.axios.delete(`/master/${this.id}`);
 		this.destroyed = true;
 
-		if (this.options.saveLog) {
-			await this.saveLog();
+		if (this.options.log.saving) {
+			const { data: log } = await this.axios.get(`/master/${this.id}/log`);
+			const filename = path.join(this.options.log.path, `log_${Date.now}.json`);
+
+			await fs.promises.writeFile(filename, JSON.stringify(log));
 		}
 	}
 
@@ -91,29 +98,48 @@ class Master extends EventEmitter {
 		await this.axios.delete(`/master/${this.id}/agent/${id}`);
 	}
 
-	getAgent(name) {
-		return this.agents[name];
+	async handle(name, fn) {
+		if (!_.isString(name)) {
+			throw new MasterError('Agent name NUST be a string.');
+		}
+
+		if (!_.isFunction(fn)) {
+			throw new MasterError('The 2nd argument MUST be a function.');
+		}
+
+		const agent = this.agents[name];
+
+		if (_.isUndefined(agent)) {
+			throw new MasterError(`The agent named ${name} has been removed.`);
+		}
+
+		try {
+			await fn({
+				agent,
+				idle: this.idle,
+				assert: this.assert,
+				master: this
+			});
+
+			return true;
+		} catch (error) {
+			this.log('master.error', JSON.stringify(error));
+
+			return false;
+		}
 	}
 
 	async log(namespace, message) {
-
+		await this.axios.post(`/master/${this.id}/log`, { namespace, message });
 	}
 
-	async saveLog(pathname) {
-
-	}
-
-	static create(options, scenarioBuilder) {
+	static create(...optionsList) {
 		return new Promise((resolve, reject) => {
-			const master = new this(options);
+			const master = new this(mergeOptions(...optionsList));
 
 			master.on('ready', () => resolve(master));
 			master.on('error', error => reject(error));
 		});
-	}
-
-	static use(install) {
-		install(Driver.prototype);
 	}
 }
 
