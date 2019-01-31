@@ -1,29 +1,34 @@
 /*eslint no-console: off */
+// require('./mock');
 
-const { Master } = require('../src/master');
+describe.skip('Agent', function () {
 
-describe('Agent', function () {
-	this.beforeAll(async () => {
-		this.master = await Master.create({
-			observerUrl: 'http://127.0.0.1:8080',
-			agentNameList: ['main']
-		});
+	let master = null;
+	
+	before(async function () {
+		Master.config({ observerUrl: 'http://127.0.0.1:8080' });
+		
+		master = await Master.create();
 	});
 
-	it('should debug master successfully.', async function () {
+	it('should debug master successfully.', async () => {
 
-		await master.handle('main', async ({agent, idle, assert}) => {
+		await master.handle('main', async agent => {
+			const start = Date.now();
 			
-			console.time('t1');
-			const title = await agent.getTitle();
-			console.timeEnd('t1');
+			// console.time('t1');
+			// const title = await agent.getTitle();
+			// console.timeEnd('t1');
 
-			console.log(title);
+			await master.idle(3000);
+			await master.assert(() => Date.now() > start + 5000, 10000);
+
+			console.log(a);
 
 		});
 	});
 
 	this.afterAll(async () => {
-		await this.master.destroy();
+		await master.destroy();
 	});
 });

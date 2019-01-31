@@ -1,44 +1,38 @@
 const _ = require('lodash');
 
-function Action() {}
-
-Object.assign(Action.prototype, {
+const agentMethodMapping = {
 	submit: 'submit',
+	scroll: 'scroll',
+	upload: 'upload',
+
 	click: 'mouseClick',
-	dblclick(agent) {
-		agent.mouseClick('left', 2);
-	},
-	rightclick(agent) {
-		agent.mouseClick('right');
-	},
-	type: 'inputText',
-	check: 'inputBox',
-	uncheck: 'inputBox',
+	dblclick: 'mouseDblclick',
 	hold: 'mouseHold',
 	move: 'mouseMove',
 	drop: 'mouseDrop',
 	wheel: 'mouseWheel',
-	scroll: 'scroll',
+
+	type: 'inputText',
+	check: 'inputBox',
+	uncheck: 'inputBox',
+	select: 'select',
+
 	to: 'to',
 	back: 'back',
 	forward: 'forward',
 	refresh: 'refresh',
-	wait() {
 
-	},
-	upload: 'upload'
-});
+	screenshot: 'screenshot'
+};
 
-class Player extends Action{
-	constructor(agent) {
-		super();
-
-		this.agent = agent;
+class Player {
+	constructor() {
+		this.agent = null;
 		this.actionList = [];
 	}
 
 	$push(name, args = []) {
-		this.actionList.push(name, args);
+		this.actionList.push([name, args]);
 
 		return this;
 	}
@@ -52,16 +46,36 @@ class Player extends Action{
 	switchWindow(index) {
 		this.agent.switchWindow(index);
 	}
+
+	wait(timeout) {
+		return function () {
+			return new Promise(resolve => setTimeout(() => resolve(), timeout));
+		};
+	}
 	
 	async end() {
 		while(!_.isEmpty(this.actionList)) {
-			const action = this.actionList.shift();
+			const invoking = this.actionList.shift();
 
-			await this.agent.$execute(action);
+			if (_.isFunction(invoking)) {
+				return await invoking();
+			}
+			
+			const { method, args } = invoking;
+
+			if (_.isString()) {
+				return await this.agent[method](...args);
+			}
 		}
 
 		return true;
 	}
+}
+
+for(const methodName in agentMethodMapping) {
+	Player.prototype[methodName] = function (...args) {
+		this.$push(agentMethodMapping[methodName], Array.from(args));
+	};
 }
 
 module.exports = {

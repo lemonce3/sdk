@@ -1,3 +1,5 @@
+const _ = require('lodash');
+
 exports.provideIdle = function provideIdle(defaultTimeout) {
 	return async function idle(time = defaultTimeout) {
 		if (typeof time !== 'number' || time < 0) {
@@ -8,26 +10,30 @@ exports.provideIdle = function provideIdle(defaultTimeout) {
 	};
 };
 
-exports.provideAssert = function provideAssert(defaultLimit) {
-	return async function assert(expression, limit = defaultLimit) {
-		const timoutTime = Date.now() + limit;
-
-		if (typeof expression !== 'function') {
+exports.provideAssert = function provideAssert(defaultTimeout, polling) {
+	return async function assert(expression, timeout = defaultTimeout) {
+		if (!_.isFunction(expression)) {
 			throw new Error('Assertion expression must be a function.');
 		}
+
+		if (!_.isNumber(timeout) || timeout <= 0) {
+			throw new Error('Assertion timeout must be a number.');
+		}
+
+		const timeoutTime = Date.now() + timeout;
 		
 		return new Promise((resolve, reject) => {
 			(async function expressionWatcher() {
-				if (Date.now() > timoutTime) {
+				if (Date.now() > timeoutTime) {
 					return reject(new Error('Assertion failed.'));
 				}
 
-				try {
-					if (await expression()) {
-						return resolve();
-					}
-				} finally {
-					setTimeout(() => expressionWatcher(), 50);
+				const result = await expression();
+
+				if (result) {
+					return resolve(result);
+				} else {
+					setTimeout(() => expressionWatcher(), polling);
 				}
 			}());
 		});

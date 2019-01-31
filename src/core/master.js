@@ -12,75 +12,51 @@ class MasterConnectionError extends Error {}
 class MasterBindingError extends Error {}
 class MasterError extends Error {}
 
+const masterGlobal = {
+	httpAgent: null
+};
+
 class Master extends EventEmitter {
-	constructor(options) {
+	constructor(options, model) {
 		super();
 
-		const { observerUrl, agents } = options;
-
-		this.id = null;
-		this.model = null;
+		this.id = model.id;
+		this.model = model;
 		this.options = options;
-
-		this.axios = axios.create({
-			baseURL: `${observerUrl}/api`,
-			timeout: 1000
+		this.httpAgent = axios.create({
+			baseURL: `${masterGlobal.httpAgent.defaults.baseURL}/master/${this.id}`
 		});
-
+		
 		this.agents = {};
 		this.destroyed = false;
-		this.connecting = false;
 
-		this.assert = provideAssert(options.assert.timeout);
+		this.assert = provideAssert(options.assert.timeout, options.assert.polling);
 		this.idle = provideIdle(options.idle.timeout);
 
-		this.init(agents);
+		this.$watch();
+		this.$watcher = null;
 	}
 
 	$watch() {
-		return this.axios.get(`/master/${this.id}`).then(({ data: masterModel }) => {
-			if (this.destroyed) {
-				return;
+		return this.httpAgent.get().then(({ data: masterModel }) => {
+			if (!this.destroyed) {
+				this.model = masterModel;
+				this.$watcher = setTimeout(() => this.$watch(), this.options.polling);
 			}
-
-			this.model = masterModel;
-			setTimeout(() => this.$watch(), this.options.polling);
 		}, () => {
 			this.destroyed = true;
-			this.connecting = false;
 			this.emit('error', new MasterConnectionError('Connection is broken and master has been destroyed.'));
 			this.emit('destroy');
 		});
 	}
 
-	async init(nameList) {
-		try {
-			fs.ensureDirSync(this.options.log.path);
-
-			const { data: masterModel } = await this.axios.post('/master');
-			this.connecting = true;
-			this.id = masterModel.id;
-			this.model = masterModel;
-
-			try {
-				await Promise.all(nameList.map(name => this.bind(name)));
-			} catch (error) {
-				throw new MasterBindingError('No idle agent could be binded.');
-			}
-			
-			await this.$watch();
-			this.emit('ready', this);
-		} catch (error) {
-			this.emit('error', error);
-		}
-	}
-
 	async destroy() {
-		await this.axios.delete(`/master/${this.id}`);
+		clearTimeout(this.$watcher);
+		await this.httpAgent.delete();
 		this.destroyed = true;
 
 		if (this.options.log.saving) {
-			const { data: log } = await this.axios.get(`/master/${this.id}/log`);
+			const { data: log } = await this.httpAgent.get('/log');
 			const filename = path.join(this.options.log.path, `log_${Date.now}.json`);
 
 			await fs.promises.writeFile(filename, JSON.stringify(log));
@@ -88,14 +64,14 @@ class Master extends EventEmitter {
 	}
 
 	async bind(name) {
-		const { data: agent } = await this.axios.post(`/master/${this.id}/agent`);
+		const { data: agent } = await this.httpAgent.post('/agent');
 
 		this.agents[name] = new Agent(agent, this);
 	}
 
 	async unbind(name) {
 		const { id } = this.agents[name];
-		await this.axios.delete(`/master/${this.id}/agent/${id}`);
+		await this.httpAgent.delete(`/agent/${id}`);
 	}
 
 	async handle(name, fn) {
@@ -109,41 +85,54 @@ class Master extends EventEmitter {
 
 		const agent = this.agents[name];
 
-		if (_.isUndefined(agent)) {
-			throw new MasterError(`The agent named ${name} has been removed.`);
+		if (!agent) {
+			throw new MasterError(`The agent named '${name}' is not found.`);
 		}
 
 		try {
-			await fn({
-				agent,
-				idle: this.idle,
-				assert: this.assert,
-				master: this
-			});
-
-			return true;
+			return await fn(this.agents[name], this);
 		} catch (error) {
-			this.log('master.error', JSON.stringify(error));
+			this.log('master.error', error.message);
 
-			return false;
+			throw error;
 		}
 	}
 
 	async log(namespace, message) {
-		await this.axios.post(`/master/${this.id}/log`, { namespace, message });
-	}
-
-	static create(...optionsList) {
-		return new Promise((resolve, reject) => {
-			const master = new this(mergeOptions(...optionsList));
-
-			master.on('ready', () => resolve(master));
-			master.on('error', error => reject(error));
-		});
+		await this.httpAgent.post('/log', { namespace, message });
 	}
 }
 
 module.exports = {
 	Master,
-	MasterConnectionError,
+	create(...optionsList) {
+		const options = mergeOptions(...optionsList);
+
+		if (!masterGlobal.httpAgent) {
+			throw new Error('Master global httpAgent has NOT been set. Master.config() first.');
+		}
+		
+		return masterGlobal.httpAgent.post('/master').then(({ data: model }) => {
+			return new Master(options, model);
+		}, () => {
+			throw new MasterConnectionError('Observer server connection error.');
+		}).then(master => {
+			return Promise.all(options.agents.map(name => master.bind(name))).then(() => {
+				return master;
+			}, () => {
+				throw new MasterBindingError('No idle agent could be binded.');
+			});
+		});
+	},
+	config({ observerUrl }) {
+		try {
+			new URL(observerUrl);
+		} catch (error) {
+			throw new Error('Property observerUrl in argument 0 MUST be a url string.');
+		}
+
+		masterGlobal.httpAgent = axios.create({
+			baseURL: `${observerUrl}/api`
+		});
+	}
 };

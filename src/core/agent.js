@@ -16,7 +16,7 @@ class Agent extends Driver {
 
 	async $execute(name, args = []) {
 		const agentModel = this.master.model.agents[this.id];
-		const { timeout, polling, afterIdle } = this.master.options.program;
+		const { timeout, polling, idle } = this.master.options.program;
 
 		if (!agentModel) {
 			throw new AgentError('Agent has been destroyed.');
@@ -25,14 +25,12 @@ class Agent extends Driver {
 		const { axios } = this.master;
 		const { windows } = agentModel;
 		const { data: programModel } = await axios.post([
-			`/master/${this.master.id}`,
-			`/agent/${this.id}`,
 			`/window/${windows[this.windowIndex].id}`,
 			'/program'
 		].join(''), { name, args, timeout });
 
 		return await new Promise((resolve, reject) => {
-			const timoutTime = Date.now() + timeout;
+			const timeoutTime = Date.now() + timeout;
 
 			(function programGetter() {
 				return axios.get(`/program/${programModel.id}`)
@@ -44,10 +42,10 @@ class Agent extends Driver {
 						}
 
 						if (returnValue) {
-							return setTimeout(() => resolve(returnValue.value), afterIdle);
+							return setTimeout(() => resolve(returnValue.value), idle);
 						}
 
-						if (Date.now() < timoutTime) {
+						if (Date.now() < timeoutTime) {
 							return setTimeout(() => programGetter(), polling);
 						}
 					}, () => {
@@ -61,12 +59,8 @@ class Agent extends Driver {
 		this.windowIndex = index;
 	}
 
-	play(player) {
-		if (player) {
-			return player.setAgent(this).end();
-		}
-
-		const newPlayer = new Player();
+	play(timeout = 5000, idle = 1000) {
+		const newPlayer = new Player(timeout, idle);
 		newPlayer.setAgent(this);
 
 		return newPlayer;

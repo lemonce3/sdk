@@ -58,20 +58,22 @@ module.exports = function mergeOptions(...optionsList) {
 	});
 
 	validate(final, schema);
+
+	return final;
 };
 
 function DefaultMasterOptionsFactory() {
 	return {
-		// observerUrl: '',
 		agents: ['main'],
 		polling: 33,
 		assert: {
-			timeout: 5000
+			timeout: 5000,
+			polling: 10
 		},
 		program: {
 			timeout: 10000,
 			polling: 33,
-			afterIdle: 500,
+			idle: 500,
 		},
 		idle: {
 			timeout: 2000
