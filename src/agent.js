@@ -2,7 +2,7 @@ module.exports = class Agent {
 	constructor(master, id) {
 		this.id = id;
 		this.master = master;
-		this.switcher = () => 0;
+		this.switcher = Agent.SWITCH_NEWEST;
 	}
 
 	setSwitcher(switcher) {
@@ -13,41 +13,46 @@ module.exports = class Agent {
 		return this.master.model.agents[this.id];
 	}
 	
-	get $windowModel() {
+	get windowModel() {
 		return this.switcher(this.model.windows);
 	}
 
 	call(name, args = []) {
-		const windowModel = this.$windowModel;
-		const { program } = windowModel;
-		const hash = Math.random().toString(16).sub(2, 4);
-
-		program.name = name;
-		program.args = args;
-		program.hash = hash;
-		program.isExited = false;
+		const hash = Math.random().toString(16).substr(2, 8);
 
 		return new Promise((resolve, reject) => {
+			this.master.nextTick(masterModel => {
+				masterModel.programs[hash] = {
+					hash, name, args, windowId: this.windowModel.id
+				};
+			});
+
 			(function watchExit(agent) {
-				agent.master.nextTick(() => {
-					const { program } = agent.$windowModel;
-					const { isExited, returnValue, error } = program;
+				agent.master.nextTick(masterModel => {
+					const program = masterModel.programs[hash];
+
+					if (!program) {
+						return reject(new Error(`Program(${hash}) has been destroy`));
+					}
 		
-					if (!isExited) {
+					if (!program.isExited) {
 						return watchExit(agent);
 					}
 
-					if (program.hash !== hash) {
-						return reject(new Error(`Program(${hash}) has been destroy`));
+					if (program.error) {
+						return reject(new Error(program.error.message + JSON.stringify(program)));
 					}
 
-					if (error) {
-						return reject(new Error(error.message));
-					}
-
-					return resolve(returnValue);
+					delete masterModel.programs[hash];
+					return resolve(program.returnValue);
 				});
 			}(this));
 		});
+	}
+
+	static SWITCH_NEWEST(windows) {
+		return windows.sort(function (windowModelA, windowModelB) {
+			return windowModelB.createdAt - windowModelA.createdAt;
+		})[0];
 	}
 };

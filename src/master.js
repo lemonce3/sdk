@@ -8,10 +8,13 @@ const http = axios.create({
 module.exports = class Master {
 	constructor(model, agentMap) {
 		this.model = model;
-		this.agents = agentMap;
 		this.callbackList = [];
-
 		this.$keepAliveTimer = null;
+		this.$agents = {};
+
+		for(let agentName in agentMap) {
+			this.$agents[agentName] = new Agent(this, agentMap[agentName]);
+		}
 		
 		(async function keepAlive(master) {
 			try {
@@ -31,8 +34,8 @@ module.exports = class Master {
 		}(this));
 	}
 
-	getAgent(agentId) {
-		return new Agent(this, agentId);
+	agent(name) {
+		return this.$agents[name];
 	}
 
 	nextTick(callback) {
@@ -45,7 +48,7 @@ module.exports = class Master {
 		return http.delete(`/api/master/${this.model.id}`);
 	}
 
-	static async create(composer) {
+	static async create(composer = this.GET_LAST_AGENT) {
 		before(async () => {
 			const agentList = await this.getAllAgent();
 			const agentMap = composer(agentList);
@@ -58,7 +61,11 @@ module.exports = class Master {
 		});
 
 		after(async () => {
-			await global.master.destroy();
+			try {
+				await global.master.destroy();
+			} catch (err) {
+				return;
+			}
 		});
 	}
 
@@ -67,4 +74,20 @@ module.exports = class Master {
 
 		return agentList;
 	}
-}
+
+	static GET_LAST_AGENT(agentList) {
+		const idleList = agentList
+			.filter(agentModel => {
+				return agentModel.masterId === null;
+			})
+			.sort((agentA, agentB) => {
+				return agentB.visitedAt - agentA.visitedAt;
+			});
+	
+		if (idleList.length === 0) {
+			throw Error('No idle agent now');
+		}
+	
+		return { main: idleList[0].id };
+	}
+};
