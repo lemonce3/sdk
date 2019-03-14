@@ -1,5 +1,6 @@
 const Native = require('./native');
 const Driver = require('./driver');
+const Upload = require('./upload');
 const utils = require('../uitls');
 
 class ActionQueue {
@@ -7,6 +8,7 @@ class ActionQueue {
 		this.agent = agent;
 		this.driver = new Driver(agent);
 		this.native = new Native(agent);
+		this.upload = new Upload()
 
 		this.promise = Promise.resolve();
 		this.isEnd = false;
@@ -20,16 +22,6 @@ class ActionQueue {
 		this.promise = this.promise.then(() => promise);
 
 		return this;
-	}
-
-	async $getOneElement(selector) {
-		const [target] = await this.native.selectAll(selector);
-
-		if (!target) {
-			throw new Error('Target element is NOT found.');
-		}
-
-		return target;
 	}
 
 	to(URL) {
@@ -72,55 +64,32 @@ class ActionQueue {
 		return this.$then(this.driver.moveTo(selector));
 	}
 
-	keydown(code) {
-		return this.$then(this.driver.keydown(code));
+	keydown(code, char) {
+		return this.$then(this.driver.keydown(code, char));
 	}
 
-	keyup(code) {
-		return this.$then(this.driver.keyup(code));
+	keyup(code, char) {
+		return this.$then(this.driver.keyup(code, char));
 	}
 
-	keypress(code) {
-		return this.$then(this.driver.keypress(code));
+	keypress(code, char) {
+		return this.$then(this.driver.keypress(code, char));
 	}
 
 	check(selector) {
-		return this.$then(async () => {
-			const target = await this.$getOneElement(selector);
-
-			//TODO 如果值不变 不补全操作
-			await this.driver.click(target.location);
-			await target.setValue(true);
-		});
+		return this.$then(this.driver.check(selector));
 	}
 
 	uncheck(selector) {
-		return this.$then(async () => {
-			const target = await this.$getOneElement(selector);
-
-			//TODO 如果值不变 不补全操作
-			await this.driver.click(target.location);
-			await target.setValue(false);
-		});
+		return this.$then(this.driver.uncheck(selector));
 	}
 
 	select(selector, index) {
-		return this.$then(async () => {
-			const target = await this.$getOneElement(selector);
-
-			await this.driver.click(target.location);
-			//TODO 检查是不是
-			await target.setValue(valueString);
-		});
+		return this.$then(this.driver.select(selector, index));
 	}
 
 	input(selector, valueString) {
-		return this.$then(async () => {
-			const target = await this.$getOneElement(selector);
-
-			await this.driver.click(target.location);
-			await target.setValue(valueString);
-		});
+		return this.$then(this.driver.input(selector, valueString));
 	}
 	
 	upload(fileList) {
@@ -128,7 +97,7 @@ class ActionQueue {
 
 	}
 
-	scrollTo(selector) {
+	scroll(selector) {
 		return this.$then(async () => {
 			const target = await this.$getOneElement(selector);
 

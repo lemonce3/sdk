@@ -1,3 +1,4 @@
-global.config = require('config.json');
+global.config = require('./config.json');
 
-exports.Master = null;
+exports.Master = require('./src/master');
+exports.utils = require('./src/uitls');

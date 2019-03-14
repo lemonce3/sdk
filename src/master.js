@@ -8,22 +8,26 @@ const http = axios.create({
 module.exports = class Master {
 	constructor(model, agentMap) {
 		this.model = model;
-		this.agents = {};
+		this.agents = agentMap;
 		this.callbackList = [];
 
 		this.$keepAliveTimer = null;
 		
 		(async function keepAlive(master) {
-			const model = await http.put(`/api/master/${master.model.id}`, master.model);
-
-			master.model = model;
-
-			const callbackList = master.callbackList;
-			master.callbackList = [];
-
-			callbackList.forEach(callback => callback(master.model));
-			
-			master.$keepAliveTimer = setTimeout(() => keepAlive(master), 33);
+			try {
+				const { data: model } = await http.put(`/api/master/${master.model.id}`, master.model);
+	
+				master.model = model;
+	
+				const callbackList = master.callbackList;
+				master.callbackList = [];
+	
+				callbackList.forEach(callback => callback(master.model));
+				
+				master.$keepAliveTimer = setTimeout(() => keepAlive(master), 33);
+			} catch (error) {
+				return;
+			}
 		}(this));
 	}
 
@@ -41,10 +45,21 @@ module.exports = class Master {
 		return http.delete(`/api/master/${this.model.id}`);
 	}
 
-	static async create(agentMap) {
-		const { data: masterModel } = await http.post('/api/master', Object.values(agentMap));
+	static async create(composer) {
+		before(async () => {
+			const agentList = await this.getAllAgent();
+			const agentMap = composer(agentList);
 
-		return new this(masterModel, agentMap);
+			const { data: masterModel } = await http.post('/api/master', {
+				agents: Object.values(agentMap)
+			});
+	
+			global.master = new this(masterModel, agentMap);
+		});
+
+		after(async () => {
+			await global.master.destroy();
+		});
 	}
 
 	static async getAllAgent() {

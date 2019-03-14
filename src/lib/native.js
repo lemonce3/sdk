@@ -53,6 +53,12 @@ module.exports = class Native {
 
 		return nodeList.map(elementData => new HTMLElementProxy(elementData, this.agent, windowId));
 	}
+
+	async selectOne(selector, filter) {
+		const nodeList = await this.selectAll(selector, filter);
+
+		return nodeList[0];
+	}
 	
 	closeDialog(type, value) {
 		if (!DIALOG_TYPE.find(type)) {
