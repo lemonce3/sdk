@@ -35,9 +35,9 @@ module.exports = class HTMLElementProxy {
 	}
 
 	$alive() {
-		if (!this.agent.model.windows.find(window => window.id === this.windowId)) {
-			throw new Error('Window is gone.');
-		}
+		// if (!this.agent.model.windows.find(window => window.id === this.windowId)) {
+		// 	throw new Error('Window is gone.');
+		// }
 
 		return this.agent;
 	}
@@ -75,7 +75,7 @@ module.exports = class HTMLElementProxy {
 	}
 
 	async setValue(valueString) {
-		return this.$alive().call('document.element.css', [this.hash, valueString]);
+		return this.$alive().call('document.element.value', [this.hash, valueString]);
 	}
 
 	async getParent() {

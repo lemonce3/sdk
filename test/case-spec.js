@@ -1,10 +1,10 @@
 const { Master, utils } = require('../');
-const Native = require('../lib/native');
+const Native = require('../interface/native');
 const assert = require('assert');
 
 Master.create();
 
-describe('Case::', function () {
+describe.skip('Case::', function () {
 	describe('Native interface::', function () {
 		it('debug', async function () {
 			const mainAgent = master.agent('main');
@@ -15,9 +15,9 @@ describe('Case::', function () {
 			console.log(await native.cookie());
 
 			await native.goto('/');
-			await utils.wait(3000);
+			await utils.wait(2000);
 			await native.refresh();
-			await utils.wait(3000);
+			await utils.wait(2000);
 			await native.goto('/?test=2345');
 			await utils.wait(2000);
 			await native.back();
@@ -26,15 +26,27 @@ describe('Case::', function () {
 			assert.equal(native.href, 'http://localhost:9000/');
 			
 			await native.forward();
-			await utils.wait(2000);
+			await utils.wait(3000);
 			
 			assert.equal(native.href, 'http://localhost:9000/?test=2345');
 	
 			await native.eval(`console.log('test');`);
 	
-			const elementList = await native.selectAll(['*', 'a']);
+			// const elementList = await native.selectAll(['*', 'a']);
+
+			// await elementList[0].click();
+			// console.log(elementList);
+
+			const input = await native.selectOne(['input']);
+			console.log(input);
+			await input.setValue('test');
 	
-			console.log(elementList);
+			await native.form('/', 'get', {
+				test: 1234,
+				abc: 'fsdfsfs'
+			});
 		});
+
 	});
+
 });

@@ -23,7 +23,7 @@ module.exports = class Native {
 		return this.agent.call('lang.eval', [scriptString]);
 	}
 
-	form(action, method, encodeType = DEFAULT_ENCODETYPE, inputs) {
+	form(action, method, inputs, { encodeType = DEFAULT_ENCODETYPE } = {}) {
 		return this.agent.call('window.form', [action, method, inputs]);
 	}
 
@@ -59,22 +59,31 @@ module.exports = class Native {
 
 		return nodeList[0];
 	}
+
+	getDialog(type) {
+		const windowModel = this.agent.windowModel;
+
+		return windowModel.dialog[type];
+	}
 	
 	closeDialog(type, value) {
-		if (!DIALOG_TYPE.find(type)) {
+		if (DIALOG_TYPE.indexOf(type) === -1) {
 			throw new Error(`Invalid dialog type '${type}'.`);
 		}
 
-		const { dialog } = windowModel;
+		return new Promise((resolve, reject) => {
+			const windowModel = this.agent.windowModel;
+			const dialog = windowModel.dialog[type];
 
-		if (!dialog) {
-			throw new Error(`Window(id:${windowModel.id}) is NOT blocked by ${type} dialog.`);
-		}
+			if (dialog === null) {
+				return reject(new Error(`Window(id:${windowModel.id}) is NOT blocked by ${type} dialog.`));
+			}
 
-		dialog.value = value;
-	}
+			dialog.value = value;
 
-	upload(URI) {
-
+			this.agent.master.nextTick(() => {
+				resolve();
+			});
+		});
 	}
 };
