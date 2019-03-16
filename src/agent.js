@@ -1,8 +1,11 @@
+const utils = require('./uitls');
+
 module.exports = class Agent {
 	constructor(master, id) {
 		this.id = id;
 		this.master = master;
 		this.switcher = Agent.SWITCH_NEWEST;
+		this.interval = 50;
 	}
 
 	setSwitcher(switcher) {
@@ -47,7 +50,7 @@ module.exports = class Agent {
 					return resolve(program.returnValue);
 				});
 			}(this));
-		});
+		}).then(data => utils.wait(this.interval).then(() => data));
 	}
 
 	static SWITCH_NEWEST(windows) {

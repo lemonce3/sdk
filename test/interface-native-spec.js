@@ -16,8 +16,9 @@ describe.only('Interface.Native::', function () {
 	});
 
 	this.beforeEach(async function () {
+		await utils.wait(1000);
 		await native.goto('/');
-		await utils.wait(2000);
+		await utils.wait(1000);
 	});
 
 	describe('#title', function () {
@@ -74,7 +75,7 @@ describe.only('Interface.Native::', function () {
 			const originHref = native.href;
 
 			await native.goto('/?back=1');
-			await utils.wait(2000);
+			await utils.wait(3000);
 			assert.equal(native.href, `${DOC.HREF}?back=1`);
 
 			await native.back();
@@ -131,8 +132,10 @@ describe.only('Interface.Native::', function () {
 		it('should get a confirm dialog', async function () {
 			const button = await native.selectOne(['button#confirm']);
 			await button.click();
+			await utils.wait(2000);
 		
 			assert.equal(native.getDialog('confirm').message, 'hello');
+			await native.closeDialog('confirm', false);
 		});
 	});
 
@@ -140,6 +143,7 @@ describe.only('Interface.Native::', function () {
 		it('should close a confirm dialog by cancel', async function () {
 			const button = await native.selectOne(['button#confirm']);
 			await button.click();
+			await utils.wait(2000);
 		
 			assert.equal(native.getDialog('confirm').message, 'hello');
 			await native.closeDialog('confirm', false);

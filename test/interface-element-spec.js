@@ -1,5 +1,3 @@
-
-
 describe('Interface.Element::', function () {
 	describe('#type', function () {
 
