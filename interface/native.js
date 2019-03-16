@@ -48,10 +48,10 @@ module.exports = class Native {
 	}
 
 	async selectAll(selector, filter) {
-		const windowId = null;
+		const { id, doc } = this.agent.windowModel;
 		const nodeList = await this.agent.call('document.select', [ selector, filter ]);
 
-		return nodeList.map(elementData => new HTMLElementProxy(elementData, this.agent, windowId));
+		return nodeList.map(elementData => new HTMLElementProxy(elementData, this.agent, id, doc));
 	}
 
 	async selectOne(selector, filter) {

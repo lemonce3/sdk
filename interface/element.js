@@ -12,10 +12,11 @@ const textStyleInputElement = [
 ];
 
 module.exports = class HTMLElementProxy {
-	constructor(data, agent, windowId) {
+	constructor(data, agent, windowId, windowDoc) {
 		this.data = data;
 		this.agent = agent;
 		this.windowId = windowId;
+		this.windowDoc = windowDoc;
 	}
 
 	get type() {
@@ -35,9 +36,11 @@ module.exports = class HTMLElementProxy {
 	}
 
 	$alive() {
-		// if (!this.agent.model.windows.find(window => window.id === this.windowId)) {
-		// 	throw new Error('Window is gone.');
-		// }
+		if (!this.agent.model.windows.find(window => {
+			return window.id === this.windowId && window.doc === this.windowDoc;
+		})) {
+			throw new Error('The element is gone.');
+		}
 
 		return this.agent;
 	}

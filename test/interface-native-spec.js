@@ -123,7 +123,7 @@ describe.only('Interface.Native::', function () {
 	describe('#selectOne()', function () {
 		it('should get one input element', async function () {
 			const inputElement = await native.selectOne(['input']);
-	
+
 			assert.equal(inputElement.tagName, 'INPUT');
 		});
 	});
