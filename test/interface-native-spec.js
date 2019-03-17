@@ -2,6 +2,8 @@ const { utils } = require('../');
 const Native = require('../interface/native');
 const assert = require('assert');
 const _ = require('lodash');
+const fs = require('fs');
+const path = require('path');
 
 const DOC = {
 	TITLE: 'Document Root',
@@ -147,6 +149,22 @@ describe.only('Interface.Native::', function () {
 		
 			assert.equal(native.getDialog('confirm').message, 'hello');
 			await native.closeDialog('confirm', false);
+		});
+	});
+
+	describe.only('#upload()', async function () {
+		const img = fs.readFileSync(path.join(__dirname, 'assets/img.jpeg'));
+
+		it('should upload a image', async function () {
+			const button = await native.selectOne(['input[type=file]']);
+			await button.click();
+			await utils.wait(2000);
+
+			await native.upload([
+				{ name: '验证码.jpeg', type: 'image/jpeg', blob: img }
+			]);
+
+			await utils.wait(2000);
 		});
 	});
 });

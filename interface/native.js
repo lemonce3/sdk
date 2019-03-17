@@ -1,6 +1,11 @@
+const axios = require('axios');
 const HTMLElementProxy = require('./element');
 const DEFAULT_ENCODETYPE = 'application/x-www-form-urlencoded';
 const DIALOG_TYPE = ['alert', 'confirm', 'prompt'];
+
+const http = axios.create({
+	baseURL: config.observer.url
+});
 
 module.exports = class Native {
 	constructor(agent) {
@@ -85,5 +90,35 @@ module.exports = class Native {
 				resolve();
 			});
 		});
+	}
+
+	async upload(fileList) {
+		if (!this.agent.windowModel.upload.pending) {
+			throw new Error('The window is NOT on uploading.');
+		}
+
+		fileList.forEach(file => {
+			file.hash = Math.random().toString(16).substr(2, 8);
+		});
+
+		await Promise.all(fileList.map(file => {
+			return http.post('/api/file', file.blob, {
+				params: {
+					hash: file.hash
+				},
+				headers: {
+					'Content-Type': file.type
+				}
+			});
+		}));
+
+		return this.agent.call('window.upload', [
+			fileList.map(file => {
+				return {
+					name: file.name,
+					hash: file.hash
+				};
+			})
+		]);
 	}
 };
