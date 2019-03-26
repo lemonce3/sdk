@@ -5,7 +5,7 @@ const http = axios.create({
 	baseURL: config.observer.url
 });
 
-const DEFAULT_SYNC_INTERVAL = 60;
+const DEFAULT_SYNC_INTERVAL = 33;
 
 module.exports = class Master {
 	constructor(model, agentMap) {

@@ -1,4 +1,4 @@
-describe('Interface.Element::', function () {
+describe.skip('Interface.Element::', function () {
 	describe('#type', function () {
 
 	});

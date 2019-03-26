@@ -2,9 +2,8 @@ const { utils } = require('../');
 const Driver = require('../interface/driver');
 const Native = require('../interface/native');
 const assert = require('assert');
-const _ = require('lodash');
 
-describe.only('Interface.Driver::', function () {
+describe('Interface.Driver::', function () {
 	let driver = null;
 	let native = null;
 
