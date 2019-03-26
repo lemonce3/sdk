@@ -35,6 +35,14 @@ module.exports = class HTMLElementProxy {
 		return this.data.n;
 	}
 
+	get checked() {
+		return this.data.c;
+	}
+
+	$update() {
+		
+	}
+
 	$alive() {
 		if (!this.agent.model.windows.find(window => {
 			return window.id === this.windowId && window.doc === this.windowDoc;
@@ -79,6 +87,14 @@ module.exports = class HTMLElementProxy {
 
 	async setValue(valueString) {
 		return this.$alive().call('document.element.value', [this.hash, valueString]);
+	}
+
+	async setPropertyValue(key, value) {
+		return this.$alive().call('document.element.property.set', [this.hash, key, value]);
+	}
+
+	async getPropertyValue(key) {
+		return this.$alive().call('document.element.property.get', [this.hash, key]);
 	}
 
 	async getParent() {

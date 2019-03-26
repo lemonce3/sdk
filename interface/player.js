@@ -1,14 +1,12 @@
 const Native = require('./native');
 const Driver = require('./driver');
-const Upload = require('./upload');
 const utils = require('../uitls');
 
-class ActionQueue {
+module.exports = class ActionQueue {
 	constructor(agent) {
 		this.agent = agent;
 		this.driver = new Driver(agent);
 		this.native = new Native(agent);
-		this.upload = new Upload()
 
 		this.promise = Promise.resolve();
 		this.isEnd = false;
@@ -52,29 +50,29 @@ class ActionQueue {
 		return this.$then(this.driver.contextmenu(selector));
 	}
 
-	mousedown(selector) {
-		return this.$then(this.driver.mousedown(selector));
-	}
+	// mousedown(selector) {
+	// 	return this.$then(this.driver.mousedown(selector));
+	// }
 
-	mouseup(selector) {
-		return this.$then(this.driver.mouseup(selector));
-	}
+	// mouseup(selector) {
+	// 	return this.$then(this.driver.mouseup(selector));
+	// }
 
-	moveTo(selector) {
-		return this.$then(this.driver.moveTo(selector));
-	}
+	// moveTo(selector) {
+	// 	return this.$then(this.driver.moveTo(selector));
+	// }
 
-	keydown(code, char) {
-		return this.$then(this.driver.keydown(code, char));
-	}
+	// keydown(code, char) {
+	// 	return this.$then(this.driver.keydown(code, char));
+	// }
 
-	keyup(code, char) {
-		return this.$then(this.driver.keyup(code, char));
-	}
+	// keyup(code, char) {
+	// 	return this.$then(this.driver.keyup(code, char));
+	// }
 
-	keypress(code, char) {
-		return this.$then(this.driver.keypress(code, char));
-	}
+	// keypress(code, char) {
+	// 	return this.$then(this.driver.keypress(code, char));
+	// }
 
 	check(selector) {
 		return this.$then(this.driver.check(selector));
@@ -99,7 +97,7 @@ class ActionQueue {
 
 	scroll(selector) {
 		return this.$then(async () => {
-			const target = await this.$getOneElement(selector);
+			const target = await this.native.selectOne(selector);
 
 			await target.scrollIntoView();
 		});
@@ -118,8 +116,8 @@ class ActionQueue {
 
 		return this.promise;
 	}
-};
 
-exports.play = function play(agent) {
-	return new ActionQueue(agent);
+	static play(agent) {
+		return new this(agent);
+	}
 };

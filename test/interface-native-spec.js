@@ -10,7 +10,7 @@ const DOC = {
 	HREF: 'http://localhost:9000/'
 };
 
-describe.only('Interface.Native::', function () {
+describe('Interface.Native::', function () {
 	let native = null;
 
 	this.beforeAll(function () {
@@ -113,7 +113,7 @@ describe.only('Interface.Native::', function () {
 
 	describe('#selectAll()', function () {
 		it('should get 2 element: <p>, <input>', async function () {
-			const elementList = await native.selectAll(['p,input']);
+			const elementList = await native.selectAll(['p,input[type=text]']);
 
 			assert.equal(elementList.length, 2);
 			assert.equal(elementList[0].tagName, 'INPUT');
@@ -152,13 +152,13 @@ describe.only('Interface.Native::', function () {
 		});
 	});
 
-	describe.only('#upload()', async function () {
+	describe('#upload()', async function () {
 		const img = fs.readFileSync(path.join(__dirname, 'assets/img.jpeg'));
 
 		it('should upload a image', async function () {
 			const button = await native.selectOne(['input[type=file]']);
 			await button.click();
-			await utils.wait(2000);
+			await utils.wait(3000);
 
 			await native.upload([
 				{ name: '验证码.jpeg', type: 'image/jpeg', blob: img }

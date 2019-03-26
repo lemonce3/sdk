@@ -5,6 +5,8 @@ const http = axios.create({
 	baseURL: config.observer.url
 });
 
+const DEFAULT_SYNC_INTERVAL = 60;
+
 module.exports = class Master {
 	constructor(model, agentMap) {
 		this.model = model;
@@ -19,7 +21,7 @@ module.exports = class Master {
 		(async function keepAlive(master) {
 			try {
 				const { data: model } = await http.put(`/api/master/${master.model.id}`, master.model);
-	
+
 				master.model = model;
 	
 				const callbackList = master.callbackList;
@@ -27,7 +29,7 @@ module.exports = class Master {
 	
 				callbackList.forEach(callback => callback(master.model));
 				
-				master.$keepAliveTimer = setTimeout(() => keepAlive(master), 33);
+				master.$keepAliveTimer = setTimeout(() => keepAlive(master), DEFAULT_SYNC_INTERVAL);
 			} catch (error) {
 				return;
 			}

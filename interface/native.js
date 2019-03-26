@@ -29,7 +29,7 @@ module.exports = class Native {
 	}
 
 	form(action, method, inputs, { encodeType = DEFAULT_ENCODETYPE } = {}) {
-		return this.agent.call('window.form', [action, method, inputs]);
+		return this.agent.callInTime('window.form', [action, method, inputs]);
 	}
 
 	cookie() {
@@ -37,19 +37,19 @@ module.exports = class Native {
 	}
 
 	goto(href) {
-		return this.agent.call('navigation.to', [href]);
+		return this.agent.callInTime('navigation.to', [href]);
 	}
 
 	back() {
-		return this.agent.call('navigation.back', []);
+		return this.agent.callInTime('navigation.back', []);
 	}
 
 	forward() {
-		return this.agent.call('navigation.forward', []);
+		return this.agent.callInTime('navigation.forward', []);
 	}
 
 	refresh() {
-		return this.agent.call('navigation.refresh', []);
+		return this.agent.callInTime('navigation.refresh', []);
 	}
 
 	async selectAll(selector, filter) {

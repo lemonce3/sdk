@@ -2,6 +2,20 @@ const Native = require('./native');
 const HTMLElementProxy = require('./element');
 const _ = require('lodash');
 
+const DEFAULT_MOUSE_EVENT_INITS = {
+	bubbles: true, cancelable: true,
+	button: 0,
+	buttons: 0o001,
+	screenX: 0,
+	screenY: 0,
+	clientX: 0,
+	clientY: 0,
+	altKey: false,
+	ctrlKey: false,
+	metaKey: false,
+	shiftKey: false
+};
+
 class Driver {
 	constructor(agent) {
 		this.agent = agent;
@@ -15,79 +29,87 @@ class Driver {
 		this.pointer.offset = [x, y];
 	}
 
-	async $getElement(arg, callback) {
-		if (HTMLElementProxy.isElement(arg)) {
-			return arg;
-		}
+	async getUniqueTargetElement(arg) {
+		if (_.isArray(arg)) {
+			const element =  this.native.selectOne(arg);
 
-		if (_.isString(arg)) {
-			throw new TypeError('String is expected.');
-		}
-
-		const element = await this.native.selectOne(arg);
-
-		return callback(element);
-	}
-
-	async check(selector) {
-		const target = await this.native.selectOne(selector);
-
-		HTMLElementProxy.assertCheckable(target);
-		
-		if (target.value === false) {
-			await this.driver.click(target.location);
-			await target.setValue(true);
-		}
-	}
-
-	async uncheck(selector) {
-		return this.$then(async () => {
-			const target = await this.$getOneElement(selector);
-
-			HTMLElementProxy.assertCheckable(target);
-
-			if (target.value === true) {
-				await this.driver.click(target.location);
-				await target.setValue(false);
+			if (!element) {
+				throw new Error('Element is NOT found.');
 			}
-		});
+
+			return element;
+		}
+
+		return arg;
 	}
 
-	async select(selector, index) {
-		return this.$then(async () => {
-			const target = await this.$getOneElement(selector);
-			
-			HTMLElementProxy.assertSelectable(target);
+	async check(target) {
+		const element = await this.getUniqueTargetElement(target);
 
-			await this.driver.click(target.location);
-			await target.setValue(valueString);
-		});
+		HTMLElementProxy.assertCheckable(element);
+		
+		if (element.checked === false) {
+			await this.click(element);
+		}
 	}
 
-	async input(selector, valueString) {
-		return this.$then(async () => {
-			const target = await this.$getOneElement(selector);
+	async uncheck(target) {
+		const element = await this.getUniqueTargetElement(target);
 
-			await this.driver.click(target.location);
-			await target.setValue(valueString);
-		});
+		HTMLElementProxy.assertCheckable(element);
+
+		if (element.checked === true) {
+			await this.click(element);
+		}
+	}
+
+	async selectByIndex(target, index) {
+		const element = await this.getUniqueTargetElement(target);
+		
+		HTMLElementProxy.assertSelectable(element);
+
+		await this.click(element);
+		await element.setPropertyValue('selectedIndex', index);
+		await this.click(element);
+	}
+
+	async selectByValue(target, valueString) {
+		const element = await this.getUniqueTargetElement(target);
+		
+		HTMLElementProxy.assertSelectable(element);
+
+		await this.click(element);
+		await element.setValue(valueString);
+		await this.click(element);
+	}
+
+	async input(target, valueString) {
+		if (!_.isString(valueString)) {
+			throw new Error('Determined string datatype expected.');
+		}
+
+		const element = await this.getUniqueTargetElement(target);
+
+		await this.click(element);
+		await element.setValue(valueString);
 	}
 }
 
-['click', 'dblclick', 'contextmenu', 'mousedown', 'mouseup', 'mousemove'].forEach(methodName => {
-	Driver.prototype[methodName] = function (elementOrSelector = null) {
-		return this.$getElement(elementOrSelector, element => {
-			return this.agent.call(`driver.${methodName}`, [
-				element.location,
-				this.pointer.offset
-			]);
-		});
+['click', 'dblclick', 'contextmenu', 'mousedown', 'mouseup', 'mousemove'].forEach(actionName => {
+	Driver.prototype[actionName] = async function (target) {
+		const element = await this.getUniqueTargetElement(target);
+
+		return this.agent.call('driver.mouse', [
+			element.hash,
+			actionName,
+			DEFAULT_MOUSE_EVENT_INITS
+		]);
 	};
 });
 
 ['keydown', 'keyup', 'keypress'].forEach(methodName => {
 	Driver.prototype[methodName] = function (code, char) {
-		return this.agent.call(`driver.${methodName}`, [code, char]);
+		return this.agent.call(`driver.keyboard.${methodName}`, [code, char]);
 	};
 });
 
